@@ -4,27 +4,27 @@ import { IsNotEmpty, IsDate, IsNumber, IsString, IsBoolean } from 'class-validat
 export class CreateTaskDto {
   @IsNotEmpty()
   @IsString()
-  readonly title: string;
+  readonly Title: string;
 
   @IsNotEmpty()
   @IsNumber()
-  readonly priority: number;
+  readonly Priority: number;
 
   @IsNotEmpty()
   @IsDate()
   @Transform(({ value }) => new Date(value))
-  readonly startDate: Date;
+  readonly Start_Date: Date;
 
   @IsNotEmpty()
   @IsDate()
   @Transform(({ value }) => new Date(value))
-  readonly endDate: Date;
+  readonly End_Date: Date;
 
   @IsNotEmpty()
   @IsBoolean()
-  readonly concurrence: boolean;
+  readonly Concurrence: boolean;
 
   @IsNotEmpty()
   @IsString()
-  readonly state: string;
+  readonly State: string;
 }

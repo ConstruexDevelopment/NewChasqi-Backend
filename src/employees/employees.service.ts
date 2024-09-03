@@ -1,15 +1,15 @@
 import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Model, Connection, Schema, Types } from 'mongoose';
 import { Employee } from './employee.schema';
-import { Task, TaskLog } from './employee.schema'; // Ajusta la ruta según tu proyecto
 
 import { isValidObjectId } from 'mongoose';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddFielEmployeeDto } from './dto/add-field-employee.dto';
-import { CreateTaskDto } from './dto/create-task-.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { CreateTaskDto } from '../tasks/dto/create-task.dto';
+import { UpdateTaskDto } from '../tasks/dto/update-task.dto';
 import { KpiDto } from './dto/kpi.dto';
+
 @Injectable()
 export class EmployeesService {
   constructor(@Inject('EMPLOYEE_MODEL') private EmployeeModel: Model<Employee>,
@@ -41,40 +41,6 @@ export class EmployeesService {
       tenantId,
     });
     return createdEmployee.save();
-  }
-
-  async addFieldEmployee(addFieldDto: AddFielEmployeeDto, tenantId: string): Promise<{ message: string }> {
-    const { fieldName, fieldType } = addFieldDto;
-
-    const validTypes = ['string', 'number', 'boolean', 'date'];
-    if (!validTypes.includes(fieldType)) {
-      throw new BadRequestException('Invalid field type');
-    }
-
-    let defaultValue: any;
-    switch (fieldType) {
-      case 'string':
-        defaultValue = '';
-        break;
-      case 'number':
-        defaultValue = 0;
-        break;
-      case 'boolean':
-        defaultValue = false;
-      case 'date':
-        defaultValue = new Date();
-        break;
-      default:
-        throw new BadRequestException('Invalid field type');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    const schema = EmployeeModel.schema;
-    schema.add({ [fieldName]: { type: fieldType, default: defaultValue } });
-
-    await EmployeeModel.updateMany({ tenantId }, { $set: { [fieldName]: defaultValue } });
-
-    return { message: `Field '${fieldName}' of type '${fieldType}' added successfully` };
   }
 
   async updateEmployee(id: string, updateEmployeeDto: UpdateEmployeeDto, tenantId: string): Promise<Employee> {
@@ -116,7 +82,7 @@ export class EmployeesService {
     }
 
     // Buscar el empleado por ID y tenantId, y solo seleccionar el campo "name"
-    const employee = await EmployeeModel.findOne({ _id: employeeId, tenantId }, { name: 1 });
+    const employee = await EmployeeModel.findOne({ _id: employeeId, tenantId }, { Name: 1 });
 
     // Si no se encuentra el empleado, lanzar una excepción
     if (!employee) {
@@ -124,8 +90,45 @@ export class EmployeesService {
     }
 
     // Retornar el nombre del empleado
-    return employee.name;
+    return employee.Name;
   }
+
+  async addFieldEmployee(addFieldDto: AddFielEmployeeDto, tenantId: string): Promise<{ message: string }> {
+    const { fieldName, fieldType } = addFieldDto;
+
+    const validTypes = ['string', 'number', 'boolean', 'date'];
+    if (!validTypes.includes(fieldType)) {
+      throw new BadRequestException('Invalid field type');
+    }
+
+    let defaultValue: any;
+    switch (fieldType) {
+      case 'string':
+        defaultValue = '';
+        break;
+      case 'number':
+        defaultValue = 0;
+        break;
+      case 'boolean':
+        defaultValue = false;
+      case 'date':
+        defaultValue = new Date();
+        break;
+      default:
+        throw new BadRequestException('Invalid field type');
+    }
+
+    const EmployeeModel = await this.getModelForTenant(tenantId);
+    const schema = EmployeeModel.schema;
+    schema.add({ [fieldName]: { type: fieldType, default: defaultValue } });
+
+    await EmployeeModel.updateMany({ tenantId }, { $set: { [fieldName]: defaultValue } });
+
+    return { message: `Field '${fieldName}' of type '${fieldType}' added successfully` };
+  }
+
+
+  /* 
 
   // <------------------------------------------------------ Tasks ------------------------------------>  
 
@@ -509,5 +512,7 @@ export class EmployeesService {
 
     return kpi;
   }
+
+  */ 
 
 }

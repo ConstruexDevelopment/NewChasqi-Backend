@@ -1,16 +1,20 @@
 import { Transform } from "class-transformer";
-import { IsOptional, IsString } from "class-validator";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 
 export class UpdateEmployeeDto {
     @IsOptional()
     @IsString()
-    readonly name?: string;
+    readonly Name?: string;
 
     @IsOptional()
     @IsString()
-    readonly department?: string;
+    readonly Department?: string;
 
     @IsOptional()
     @IsString()
-    readonly work_position?: string;
+    readonly Work_position?: string;
+
+    @IsOptional()
+    @IsNumber()
+    readonly Role: number;
 }

@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TenantsModule } from './tenants/tenants.module';
 import config from './config/config';
-import { ActivityModule } from './activities/activities.module';
+import { TasksModule } from './tasks/task.module';
 import { EmployeessModule } from './employees/employees.module';
 
 @Module({
@@ -22,7 +22,7 @@ import { EmployeessModule } from './employees/employees.module';
     }),
     TenantsModule,
     EmployeessModule,
-    ActivityModule,
+    TasksModule,
   ],
   controllers: [],
   providers: [],

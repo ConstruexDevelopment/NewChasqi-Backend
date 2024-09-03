@@ -1,16 +1,20 @@
 import { Transform } from "class-transformer";
-import { IsDate, IsNotEmpty, IsString } from "class-validator";
+import { IsDate, IsNotEmpty, IsNumber, IsString } from "class-validator";
 
 export class CreateEmployeeDto {
     @IsNotEmpty()
     @IsString()
-    readonly name: string;
+    readonly Name: string;
 
     @IsNotEmpty()
     @IsString()
-    readonly department: string;
+    readonly Department: string;
 
     @IsNotEmpty()
     @IsString()
-    readonly work_position: string;
+    readonly Work_position: string;
+
+    @IsNotEmpty()
+    @IsNumber()
+    readonly Role: number;
 }

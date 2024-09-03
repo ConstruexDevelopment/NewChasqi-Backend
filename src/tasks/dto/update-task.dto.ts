@@ -4,25 +4,25 @@ import { Transform, Type } from 'class-transformer';
 export class UpdateTaskDto {
   @IsString()
   @IsOptional()
-  readonly title?: string;
+  readonly Title?: string;
 
   @IsNumber()
   @IsOptional()
-  readonly priority?: number;
+  readonly Priority?: number;
 
   @IsOptional()
   @Transform(({ value }) => new Date(value))
-  readonly startDate?: Date;
+  readonly Start_Date?: Date;
 
   @IsOptional()
   @Transform(({ value }) => new Date(value))
-  readonly endDate?: Date;
+  readonly End_Date?: Date;
 
   @IsOptional()
   @IsBoolean()
-  readonly concurrence?: boolean;
+  readonly Concurrence?: boolean;
 
   @IsString()
   @IsOptional()
-  readonly state?: number;
+  readonly State?: number;
 }

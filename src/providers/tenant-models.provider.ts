@@ -1,6 +1,6 @@
 import { Connection } from 'mongoose';
-import { Activity, ActivitySchema } from 'src/activities/activity.schema';
 import { Employee, EmployeeSchema } from 'src/employees/employee.schema';
+import { Task, TaskSchema } from 'src/tasks/task.schema';
 
 export const tenantModels = {
   employeeModel: {
@@ -10,10 +10,10 @@ export const tenantModels = {
     },
     inject: ['TENANT_CONNECTION'],
   },
-  activityModel: {
-    provide: 'ACTIVITY_MODEL',
+  taskModel: {
+    provide: 'TASK_MODEL',
     useFactory: async (tenantConnection: Connection) => {
-      return tenantConnection.model(Activity.name, ActivitySchema);
+      return tenantConnection.model(Task.name, TaskSchema);
     },
     inject: ['TENANT_CONNECTION'],
   }

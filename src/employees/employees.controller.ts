@@ -3,8 +3,8 @@ import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddFielEmployeeDto } from './dto/add-field-employee.dto';
-import { CreateTaskDto } from './dto/create-task-.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { CreateTaskDto } from '../tasks/dto/create-task.dto';
+import { UpdateTaskDto } from '../tasks/dto/update-task.dto';
 import { KpiDto } from './dto/kpi.dto';
 import { Employee } from './employee.schema';
 
@@ -55,6 +55,9 @@ export class EmployeesController {
     return this.employeesService.getEmployeeName(employeeId, tenantId);
   }
 
+}
+
+  /* 
   //<-------------------------------------- Tasks ----------------------------------------->
   @Post(':id/tasks')
   async createTask(
@@ -205,5 +208,6 @@ export class EmployeesController {
     const tenantId = req['tenantId'];
     return this.employeesService.getKPIbyID(employeeId, taskId, kpiId, tenantId);
   }
-}
 
+
+*/ 
