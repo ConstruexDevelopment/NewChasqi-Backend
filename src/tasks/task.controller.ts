@@ -8,16 +8,15 @@ export class TaskController {
     constructor(private readonly taskService: TaskService) { }
 
     //<-------------------------------------- Tasks ----------------------------------------->
-    
+
     @Get('/')
     async getAllTasks(
         @Req() req
-    ){
+    ) {
         const tenantId = req['tenantId'];
         return this.taskService.getAllTasks(tenantId);
     }
 
-    
     @Post(':id')
     async createTask(
         @Param('id') employeeId: string,
@@ -37,25 +36,24 @@ export class TaskController {
         return this.taskService.getTasksOfEmployee(employeeId, tenantId);
     }
 
-    @Put(':id/tasks/:taskId')
+    @Put(':taskId')
     updateTask(
-        @Param('id') id: string,
         @Param('taskId') taskId: string,
         @Body() updateTaskDto: UpdateTaskDto,
         @Req() req
     ) {
-        const tenantId = req['tenantId'];
-        return this.taskService.updateTask(id, taskId, updateTaskDto, tenantId);
+        const tenantId = req['tenantId']; // Obtener el tenantId del request
+        return this.taskService.updateTask(taskId, updateTaskDto, tenantId); // Llamar a la función de actualización con los parámetros necesarios
     }
 
-    @Delete(':id/tasks/:taskId')
+    @Delete(':id/deletasks/:taskId')
     async deleteTask(
         @Param('id') employeeId: string,
         @Param('taskId') taskId: string,
         @Req() req
     ): Promise<{ message: string }> {
-        const tenantId = req['tenantId'];
-        return this.taskService.deleteTask(employeeId, taskId, tenantId);
+        const tenantId = req['tenantId']; // Obtener el tenantId del request
+        return this.taskService.deleteTask(employeeId, taskId, tenantId); // Llamar a la función de eliminación con los parámetros necesarios
     }
 
     @Get(':id/tasks/:taskId')//get a specific task

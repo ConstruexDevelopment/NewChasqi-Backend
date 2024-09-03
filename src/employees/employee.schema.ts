@@ -67,7 +67,7 @@ export class Employee extends Document {
   Work_position: string;
 
   @Prop({ required: true })
-  Role: number 
+  Role: number; 
 
   // Relación uno a muchos con Task
   @Prop({ type: [Types.ObjectId], ref: 'Task', default: [] })

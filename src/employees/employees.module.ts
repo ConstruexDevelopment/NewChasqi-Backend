@@ -13,7 +13,7 @@ import { Employee, EmployeeSchema } from './employee.schema';
     EmployeesService,
     tenantModels.employeeModel,
   ],
-  exports: [EmployeesService]
+  exports: [EmployeesService, tenantModels.employeeModel], 
 })
 export class EmployeessModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

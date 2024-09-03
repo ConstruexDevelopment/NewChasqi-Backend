@@ -9,7 +9,9 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TaskService {
-    constructor(@Inject('TASK_MODEL') private TaskModel: Model<Task>,
+    constructor(
+        @Inject('TASK_MODEL') private TaskModel: Model<Task>,
+        @Inject('EMPLOYEE_MODEL') private employeeModel: Model<Employee>, // Inyectar el modelo de empleados
         @Inject('TENANT_CONNECTION') private connection: Connection) { }
 
     private async getModelForTenant(tenantId: string): Promise<Model<Task & Document>> {
@@ -24,6 +26,20 @@ export class TaskService {
         // Register and return the new model
         return this.connection.model<Task & Document>(modelName, schema);
     }
+
+    private async getEmployeeModelForTenant(tenantId: string): Promise<Model<Employee & Document>> {
+        const modelName = `Employee_${tenantId}`;
+        if (this.connection.models[modelName]) {
+            return this.connection.models[modelName] as Model<Employee & Document>;
+        }
+
+        // Create a new schema based on the existing schema and add any additional properties
+        const schema = new Schema(this.employeeModel.schema.obj as any, { strict: false });
+
+        // Register and return the new model
+        return this.connection.model<Employee & Document>(modelName, schema);
+    }
+
 
     // <------------------------------------------------------ Tasks ------------------------------------>  
 
@@ -44,7 +60,7 @@ export class TaskService {
         await newTask.save();
 
         // Actualiza el emplado para que tenga la referencia a esta nueva tarea
-        const EmployeeModel = await this.getModelForTenant(tenantId);
+        const EmployeeModel = await this.getEmployeeModelForTenant(tenantId);
         const updatedEmployee = await EmployeeModel.findOneAndUpdate(
             { _id: employeeId, tenantId },
             { $push: { Tasks: newTask._id } },
@@ -72,47 +88,79 @@ export class TaskService {
         return tasks;
     }
 
-    async updateTask(employeeId: string, taskId: string, updateTaskDto: UpdateTaskDto, tenantId: string): Promise<Task> {
-        if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-            throw new BadRequestException('Invalid ID');
+    async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, tenantId: string): Promise<Task> {
+        // Verificar si el taskId es válido
+        if (!isValidObjectId(taskId)) {
+            throw new BadRequestException('Invalid Task ID');
         }
 
+        // Obtener el modelo de Task para el tenant
         const TaskModel = await this.getModelForTenant(tenantId);
+
+        // Buscar y actualizar la tarea
         const task = await TaskModel.findOneAndUpdate(
-            { _id: taskId, employeeId, tenantId },
+            { _id: taskId, tenantId }, // No es necesario incluir employeeId ya que estamos usando el taskId único
             { $set: updateTaskDto },
             { new: true }
         );
 
+        // Si la tarea no se encuentra, lanzar excepción
         if (!task) {
-            throw new NotFoundException('Employee or Task not found');
+            throw new NotFoundException('Task not found');
         }
 
         return task;
     }
 
     async deleteTask(employeeId: string, taskId: string, tenantId: string): Promise<{ message: string }> {
+        // Verificar si los IDs son válidos
         if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
             throw new BadRequestException('Invalid ID');
         }
 
-        const TaskModel = await this.getModelForTenant(tenantId);
-        const task = await TaskModel.findOneAndDelete({ _id: taskId, employeeId, tenantId });
+        // Convertir los IDs de string a ObjectId
+        const employeeObjectId = new Types.ObjectId(employeeId);
+        const taskObjectId = new Types.ObjectId(taskId);
 
-        if (!task) {
-            throw new NotFoundException('Employee or Task not found');
+        // Obtener el modelo de Employee para el tenant
+        const EmployeeModel = await this.getEmployeeModelForTenant(tenantId);
+        console.log(`EmployeeModel for tenant ${tenantId}:`, EmployeeModel.schema.obj);
+
+        // Buscar al empleado
+        const employee = await EmployeeModel.findOne({ _id: employeeObjectId, tenantId });
+        console.log(`Employee found:`, employee);
+
+        if (!employee) {
+            throw new NotFoundException('Employee not found');
         }
 
-        // También actualiza la lista de tareas del empleado para eliminar la referencia a la tarea eliminada
-        const EmployeeModel = await this.getModelForTenant(tenantId);
-        await EmployeeModel.findOneAndUpdate(
-            { _id: employeeId, tenantId },
-            { $pull: { Tasks: taskId } },
-            { new: true }
-        );
+        // Verificar si la tarea está en la lista de tareas del empleado
+        const taskIndex = employee.Tasks.indexOf(taskObjectId);
+        if (taskIndex === -1) {
+            return { message: 'Task not associated with this employee' };
+        }
+
+        // Eliminar la referencia a la tarea del empleado
+        employee.Tasks.splice(taskIndex, 1);
+        await employee.save();
+        console.log(`Employee updated with task removed:`, employee);
+
+        // Obtener el modelo de Task para el tenant
+        const TaskModel = await this.getModelForTenant(tenantId);
+        console.log(`TaskModel for tenant ${tenantId}:`, TaskModel.schema.obj);
+
+        // Buscar y eliminar la tarea
+        const task = await TaskModel.findOneAndDelete({ _id: taskObjectId, tenantId });
+        console.log(`Deleted Task:`, task);
+
+        if (!task) {
+            throw new NotFoundException('Task not found');
+        }
 
         return { message: 'Task successfully deleted' };
     }
+
+
 
     async getTaskOfEmployee(employeeId: string, taskId: string, tenantId: string) {//get a specific task
 
@@ -145,8 +193,8 @@ export class TaskService {
 
         // Buscar la tarea por ID y asegurar que pertenezca al empleado y al tenant
         const task = await TaskModel.findOne(
-            { _id: taskId }, 
-            { title: 1} //Proyección: seleccionar solo el titulo de la tarea
+            { _id: taskId },
+            { Title: 1 } //Proyección: seleccionar solo el titulo de la tarea
         )
 
         if (!task) {
@@ -154,7 +202,7 @@ export class TaskService {
         }
 
         // Retornar el título de la tarea
-        return task.title; // Acceder al título de la tarea específica
+        return task.Title; // Acceder al título de la tarea específica
     }
 
 }
