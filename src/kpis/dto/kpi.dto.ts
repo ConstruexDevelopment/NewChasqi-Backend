@@ -4,17 +4,17 @@ import { Transform } from 'class-transformer';
 export class KpiDto {
   @IsString()
   @IsNotEmpty()
-  readonly title: string;
+  readonly Title: string;
 
   @IsNumber()
   @IsNotEmpty()
-  readonly target: number;
+  readonly Target: number;
 
   @IsNumber()
   @IsNotEmpty()
-  readonly timeUnit: number;
+  readonly Time_Unit: number;
 
   @IsString()
   @IsNotEmpty()
-  readonly fieldtobeevaluated: string;
+  readonly Field_To_Be_Evaluated: string;
 }

@@ -2,17 +2,19 @@ import { Inject, Injectable, NotFoundException, BadRequestException } from '@nes
 import { Model, Connection, Schema, Types } from 'mongoose';
 import { Task } from './task.schema';
 import { Employee } from '../employees/employee.schema';
-
 import { isValidObjectId } from 'mongoose';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { KPIService } from 'src/kpis/kpi.service';
 
 @Injectable()
 export class TaskService {
     constructor(
         @Inject('TASK_MODEL') private TaskModel: Model<Task>,
         @Inject('EMPLOYEE_MODEL') private employeeModel: Model<Employee>, // Inyectar el modelo de empleados
-        @Inject('TENANT_CONNECTION') private connection: Connection) { }
+        @Inject('TENANT_CONNECTION') private connection: Connection,
+        private readonly kpiService: KPIService // Inyecta el servicio KPI
+        ) { }
 
     private async getModelForTenant(tenantId: string): Promise<Model<Task & Document>> {
         const modelName = `Task_${tenantId}`;
@@ -52,7 +54,7 @@ export class TaskService {
         const TaskModel = await this.getModelForTenant(tenantId);
 
         if (!Types.ObjectId.isValid(employeeId)) {
-            throw new BadRequestException('Invalid employee ID');
+            throw new BadRequestException('Invalid employee ID when Add task to employee');
         }
 
         // Crea una nueva tarea con la referencia al empleado y tenant
@@ -77,7 +79,7 @@ export class TaskService {
     async getTasksOfEmployee(employeeId: string, tenantId: string) {
         const TaskModel = await this.getModelForTenant(tenantId);
         if (!Types.ObjectId.isValid(employeeId)) {
-            throw new BadRequestException('Invalid employee ID');
+            throw new BadRequestException('Invalid employee ID with get Tasks of employee');
         }
 
         const tasks = await TaskModel.find({ employeeId, tenantId });
@@ -160,8 +162,6 @@ export class TaskService {
         return { message: 'Task successfully deleted' };
     }
 
-
-
     async getTaskOfEmployee(employeeId: string, taskId: string, tenantId: string) {//get a specific task
 
         if (!Types.ObjectId.isValid(employeeId) || !Types.ObjectId.isValid(taskId)) {
@@ -204,5 +204,227 @@ export class TaskService {
         // Retornar el título de la tarea
         return task.Title; // Acceder al título de la tarea específica
     }
+
+
+    //<-------------------------------------------------TASKLOGS----------------------------------------->
+
+    async addTaskLogToTask(taskId: string, taskLogDto: any, tenantId: string): Promise<Task> {
+        if (!isValidObjectId(taskId)) {
+            throw new BadRequestException('Invalid ID');
+        }
+
+        // Obtener el modelo de Task específico para el tenant
+        const TaskModel = await this.getModelForTenant(tenantId);
+
+        // Agregar el log de tarea al array Task_Logs
+        const taskWithLogs = await TaskModel.findOneAndUpdate(
+            { _id: taskId, tenantId },
+            { $push: { Task_Logs: taskLogDto } },  // Corregido: referencia directa a Task_Logs
+            { new: true }
+        );
+
+        if (!taskWithLogs) {
+            throw new NotFoundException('Task not found');
+        }
+
+        return taskWithLogs;
+    }
+
+    async getTasksLogsToTask(taskId: string, tenantId: string): Promise<any[]> {
+        if (!isValidObjectId(taskId)) {
+            throw new BadRequestException('Invalid ID');
+        }
+
+        // Obtener el modelo de Task específico para el tenant
+        const TaskModel = await this.getModelForTenant(tenantId);
+
+        // Find the employee and the specific task within the employee's tasks array
+        const task = await TaskModel.findOne(
+            { _id: taskId, tenantId },
+            { Task_Logs: 1 } // Only select the task that matches taskId
+        );
+
+        if (!task) {
+            throw new NotFoundException('Task not found');
+        }
+
+        // Return the tasklogs of the specific task
+        return task.Task_Logs;
+    }
+
+    async getTaskKeys(taskId: string, tenantId: string): Promise<string[]> {
+        if (!isValidObjectId(taskId)) {
+            throw new BadRequestException('Invalid ID');
+        }
+
+        // Obtener el modelo de Task específico para el tenant
+        const TaskModel = await this.getModelForTenant(tenantId);
+
+        const task = await TaskModel.findOne(
+            { _id: taskId, tenantId });
+
+        if (!task) {
+            throw new NotFoundException('Task not found');
+        }
+
+        // Obtener las claves del esquema del modelo de Task
+        const schemaKeys = Object.keys(TaskModel.schema.paths);
+
+        // Obtener todas las claves del documento recuperado
+        const taskKeys = Object.keys(task.toObject());
+
+        // Filtrar solo las claves adicionales (no definidas en el esquema)
+        const additionalKeys = taskKeys.filter(key => !schemaKeys.includes(key));
+
+        return additionalKeys;
+    }
+
+    async addTaskToEmployeesByField(
+        field: string,
+        value: string,
+        taskDto: CreateTaskDto,
+        tenantId: string
+    ): Promise<{ message: string }> {
+        console.log('Field:', field);
+        console.log('Value:', value);
+        console.log('Task DTO:', taskDto);
+        console.log('Tenant ID:', tenantId);
+
+        // Obtener el modelo de Employee y Task específico para el tenant
+        const EmployeeModel = await this.getEmployeeModelForTenant(tenantId);
+        const TaskModel = await this.getModelForTenant(tenantId);
+
+        // Buscar empleados que cumplen con la condición de field y value
+        const employees = await EmployeeModel.find({ [field]: value });
+
+        console.log('Found Employees:', employees);
+
+        if (!employees || employees.length === 0) {
+            console.log('No employees found matching the criteria');
+            throw new NotFoundException('No employees found matching the criteria');
+        }
+
+        // Crear una nueva tarea para cada empleado
+        const tasks = employees.map(async (employee) => {
+            console.log('Creating task for employee:', employee._id);
+
+            if (!isValidObjectId(employee._id)) {
+                throw new BadRequestException('Invalid ID employee');
+            }
+
+            // Crear una nueva tarea en la colección Task
+            const newTask = new TaskModel({
+                ...taskDto,
+                _id: new Types.ObjectId(), // Generar un nuevo ID para la tarea
+                employeeId: employee._id, // Asociar la tarea con el ID del empleado
+                tenantId: tenantId,
+            });
+
+            // Guardar la tarea en la colección Task
+            const savedTask = await newTask.save();
+            console.log('Saved Task:', savedTask);
+
+            // Añadir el ID de la tarea al array de tareas del empleado
+            await EmployeeModel.updateOne(
+                { _id: employee._id },
+                { $push: { Tasks: savedTask._id } }
+            ).exec();
+
+            console.log('Task ID added to employee:', employee._id);
+        });
+
+        // Esperar a que todas las tareas sean creadas
+        await Promise.all(tasks);
+
+        console.log('All tasks have been created and added to employees');
+
+        return { message: `${employees.length} employees updated with new tasks` };
+    }
+
+    async getSpecificTaskLogValues(
+        taskId: string,
+        kpiId: string,
+        startDate: Date,
+        endDate: Date,
+        excludedDays: string[],
+        tenantId: string
+    ): Promise<{ values: any[], kpiPercentage: number, totalCount: number, daysConsidered: number, targetSales: number }> {
+        if (!isValidObjectId(taskId) || !isValidObjectId(kpiId)) {
+            throw new BadRequestException('Invalid ID');
+        }
+    
+        // Obtener el KPI usando el servicio KPI
+        const kpi = await this.kpiService.getKPIbyID(kpiId, tenantId);
+    
+        if (!kpi) {
+            throw new NotFoundException('KPI not found');
+        }
+    
+        // Obtener el modelo de Task específico para el tenant
+        const TaskModel = await this.getModelForTenant(tenantId);
+    
+        // Buscar la tarea utilizando el taskId
+        const task = await TaskModel.findOne(
+            { _id: taskId, tenantId }
+        );
+    
+        if (!task) {
+            throw new NotFoundException('Task not found');
+        }
+    
+        const taskLogs = task.Task_Logs;
+    
+        if (!taskLogs || taskLogs.length === 0) {
+            return { values: [], kpiPercentage: 0, totalCount: 0, daysConsidered: 0, targetSales: 0 };
+        }
+    
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+    
+        const dayMapping: { [key: string]: number } = {
+            sunday: 0,
+            monday: 1,
+            tuesday: 2,
+            wednesday: 3,
+            thursday: 4,
+            friday: 5,
+            saturday: 6,
+        };
+    
+        const excludedDayIndices = excludedDays
+            .map(day => dayMapping[day.toLowerCase()])
+            .filter(dayIndex => dayIndex !== undefined);
+    
+        const filteredTaskLogs = taskLogs.filter(log => {
+            const logDate = new Date(log.registerDate);
+            const dayOfWeek = logDate.getDay();
+            return logDate >= start && logDate <= end && !excludedDayIndices.includes(dayOfWeek);
+        });
+    
+        const key = kpi.Field_To_Be_Evaluated;
+        const values = filteredTaskLogs.map((log) => log[key]).filter((value) => value !== undefined);
+    
+        const uniqueValues = [...new Set(values)];
+    
+        const kpiTarget = kpi.Target || 0;
+        const timeUnit = kpi.Time_Unit || 1;
+    
+        let daysConsidered = 0;
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.getDay();
+            if (!excludedDayIndices.includes(dayOfWeek)) {
+                daysConsidered++;
+            }
+        }
+    
+        const exactQuotient = daysConsidered / timeUnit;
+        const targetSales = exactQuotient * kpiTarget;
+    
+        const kpiPercentage = targetSales ? (uniqueValues.length / targetSales) * 100 : 0;
+        const totalCount = values.length;
+    
+        return { values, kpiPercentage, totalCount, daysConsidered, targetSales };
+    }
+    
 
 }

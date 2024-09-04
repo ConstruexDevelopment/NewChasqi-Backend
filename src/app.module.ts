@@ -5,6 +5,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import config from './config/config';
 import { TasksModule } from './tasks/task.module';
 import { EmployeessModule } from './employees/employees.module';
+import { KpiModule } from './kpis/kpi.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EmployeessModule } from './employees/employees.module';
     TenantsModule,
     EmployeessModule,
     TasksModule,
+    KpiModule,
   ],
   controllers: [],
   providers: [],

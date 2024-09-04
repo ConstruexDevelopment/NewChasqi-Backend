@@ -8,7 +8,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddFielEmployeeDto } from './dto/add-field-employee.dto';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto';
 import { UpdateTaskDto } from '../tasks/dto/update-task.dto';
-import { KpiDto } from './dto/kpi.dto';
+import { KpiDto } from '../kpis/dto/kpi.dto';
 
 @Injectable()
 export class EmployeesService {
@@ -130,170 +130,8 @@ export class EmployeesService {
 
   /* 
 
-  // <------------------------------------------------------ Tasks ------------------------------------>  
 
-  async addTaskToEmployee(employeeId: string, createTaskDto: CreateTaskDto, tenantId: string) {
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    if (!Types.ObjectId.isValid(employeeId)) {
-      throw new BadRequestException('Invalid employee ID');
-    }
-
-    const updatedEmployee = await EmployeeModel.findOneAndUpdate(
-      { _id: employeeId, tenantId },
-      { $push: { tasks: createTaskDto } },
-      { new: true, useFindAndModify: false }
-    );
-
-    if (!updatedEmployee) {
-      throw new NotFoundException('Employee not found');
-    }
-
-    return updatedEmployee;
-  }
-
-  async getTasksOfEmployee(employeeId: string, tenantId: string) {
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    if (!Types.ObjectId.isValid(employeeId)) {
-      throw new BadRequestException('Invalid employee ID');
-    }
-
-    const employee = await EmployeeModel.findOne({ _id: employeeId, tenantId });
-    if (!employee) {
-      throw new NotFoundException('Employee not found');
-    }
-
-    return employee.tasks;
-  }
-
-  async updateTask(employeeId: string, taskId: string, updateTaskDto: UpdateTaskDto, tenantId: string): Promise<Employee> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    const employee = await EmployeeModel.findOneAndUpdate(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { $set: { 'tasks.$': updateTaskDto } },
-      { new: true }
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    return employee;
-  }
-
-  async deleteTask(employeeId: string, taskId: string, tenantId: string): Promise<{ message: string }> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    const employee = await EmployeeModel.findOneAndUpdate(
-      { _id: employeeId, tenantId },
-      { $pull: { tasks: { _id: taskId } } },
-      { new: true }
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    return { message: 'Task successfully deleted' };
-  }
-
-  async getTaskOfEmployee(employeeId: string, taskId: string, tenantId: string) {//get a specific task
-    if (!Types.ObjectId.isValid(employeeId) || !Types.ObjectId.isValid(taskId)) {
-      throw new BadRequestException('Invalid employee ID or task ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-
-    // Encuentra el empleado y selecciona solo la tarea que coincide con el taskId
-    const employee = await EmployeeModel.findOne(
-      { _id: employeeId, tenantId, 'tasks._id': taskId },
-      { 'tasks.$': 1 } // Solo selecciona la tarea que coincide con taskId
-    );
-
-    if (!employee || !employee.tasks || employee.tasks.length === 0) {
-      throw new NotFoundException('Task not found');
-    }
-
-    const task = employee.tasks[0]; // Como se seleccionó una sola tarea, es seguro tomar el primer elemento
-
-    return task;
-  }
-
-  // Método en el servicio para recuperar el título de la tarea
-  async getTaskTitle(employeeId: string, taskId: string, tenantId: string): Promise<string> {
-    // Obtener el modelo de Employee para el tenant
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-
-    // Validar que ambos IDs sean válidos
-    if (!Types.ObjectId.isValid(employeeId) || !Types.ObjectId.isValid(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    // Buscar el empleado y proyectar solo el título de la tarea específica
-    const employee = await EmployeeModel.findOne(
-      { _id: employeeId, 'tasks._id': taskId, tenantId }, // Filtro por employeeId, taskId, y tenantId
-      { 'tasks.$': 1 } // Proyección: seleccionar solo la tarea con el taskId
-    );
-
-    // Manejar el caso donde el empleado o la tarea no se encuentren
-    if (!employee || employee.tasks.length === 0) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    // Retornar el título de la tarea
-    return employee.tasks[0].title; // Acceder al título de la tarea específica
-  }
-
-  //<-------------------------------------- TaskLogs ----------------------------------------->
-
-  async getTasksLogsToTask(employeeId: string, taskId: string, tenantId: string): Promise<any[]> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-
-    // Find the employee and the specific task within the employee's tasks array
-    const employee = await EmployeeModel.findOne(
-      { _id: employeeId, tenantId, 'tasks._id': taskId },
-      { 'tasks.$': 1 } // Only select the task that matches taskId
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    // Get the task
-    const task = employee.tasks[0];
-
-    // Return the tasklogs of the specific task
-    return task.tasklogs;
-  }
-
-  async addTaskLogToTask(employeeId: string, taskId: string, tasklogDto: any, tenantId: string): Promise<Employee> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    const employee = await EmployeeModel.findOneAndUpdate(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { $push: { 'tasks.$.tasklogs': tasklogDto } },
-      { new: true, useFindAndModify: false }
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    return employee;
-  }
+  //<-------------------------------------- EVALUATION METHOD ----------------------------------------->
 
   async getSpecificTaskLogValues(
     employeeId: string,
@@ -380,52 +218,7 @@ export class EmployeesService {
     return { values, kpiPercentage, totalCount, daysConsidered, targetSales };
   }
 
-  async getTaskKeys(employeeId: string, taskId: string, tenantId: string): Promise<string[]> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid ID');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-
-    const employee = await EmployeeModel.findOne(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { 'tasks.$': 1 }
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    const task = employee.tasks[0];
-
-    // Obtener las claves válidas del objeto `Task`
-    const validKeys = Object.keys(task).filter(key => {
-      return ![
-        '__parentArray',
-        '__index',
-        '$__parent',
-        '$__',
-        '_doc',
-        '$isNew'
-      ].includes(key);
-    });
-
-    return validKeys;
-  }
-
   //<-------------------------------------- KPI's ----------------------------------------->
-
-  async addTaskToDepartment(department: string, taskDto: CreateTaskDto, tenantId: string): Promise<{ message: string }> {
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-
-    await EmployeeModel.updateMany(
-      { department: department },
-      { $push: { tasks: taskDto } }
-    ).exec();
-
-    return { message: `${department} employees updated with new task` };
-  }
 
   async getUniqueDepartments(tenantId: string): Promise<string[]> {
     // Eliminamos la validación de ObjectId si tenantId no es un ObjectId.
@@ -440,77 +233,6 @@ export class EmployeesService {
     }
 
     return uniqueDepartments;
-  }
-
-  async addKPItoTask(employeeId: string, taskId: string, kpiDto: KpiDto, tenantId: string): Promise<Employee> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const EmployeeMModel = await this.getModelForTenant(tenantId);
-
-    // Validar que el timeUnit esté entre 0 y 5
-    if (kpiDto.timeUnit < 0 || kpiDto.timeUnit > 5) {
-      throw new BadRequestException('Invalid timeUnit value. It must be between 0 and 5.');
-    }
-
-    const employee = await EmployeeMModel.findOneAndUpdate(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { $push: { 'tasks.$.kpis': kpiDto } },
-      { new: true, useFindAndModify: false }
-    );
-
-    if (!employee) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    return employee;
-  }
-
-
-  async getKPIsForTask(employeeId: string, taskId: string, tenantId: string): Promise<KpiDto[]> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId)) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const EmployeeMModel = await this.getModelForTenant(tenantId);
-    const employee = await EmployeeMModel.findOne(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { 'tasks.$': 1 }
-    );
-
-    if (!employee || employee.tasks.length === 0) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    return employee.tasks[0].kpis;
-  }
-
-  async getKPIbyID(employeeId: string, taskId: string, kpiId: string, tenantId: string): Promise<KpiDto> {
-    if (!isValidObjectId(employeeId) || !isValidObjectId(taskId) || !isValidObjectId(kpiId)) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const EmployeeModel = await this.getModelForTenant(tenantId);
-    const employee = await EmployeeModel.findOne(
-      { _id: employeeId, 'tasks._id': taskId, tenantId },
-      { 'tasks.$': 1 } // Obtén solo el task correspondiente
-    ).exec();
-
-    if (!employee || !employee.tasks.length) {
-      throw new NotFoundException('Employee or Task not found');
-    }
-
-    const task = employee.tasks[0];
-
-    // Buscar el KPI en el array `kpis` usando la función `find`
-    const kpi = task.kpis.find(kpi => kpi['_id'].toString() === kpiId);
-
-    if (!kpi) {
-      throw new NotFoundException('KPI not found');
-    }
-
-    return kpi;
   }
 
   */ 
